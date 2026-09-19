@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Velvet Dirty Soda — Business HQ</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root {
+    --bg: #faf6f1; --card: #ffffff; --ink: #2b1730; --ink-soft: #6b5a6e;
+    --primary: #6b2450; --primary-dark: #4a1738; --accent: #c9932f; --accent-soft: #f4e6c8;
+    --danger: #b0413e; --success: #3f7d58; --border: #ecdfd0; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:'Segoe UI',system-ui,-apple-system,sans-serif; min-height:100vh; }
+  header { background:linear-gradient(135deg,var(--primary-dark),var(--primary)); color:#fff; padding:18px 16px; }
+  .head-row { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; max-width:1200px; margin:0 auto; }
+  h1 { font-size:1.35rem; margin:0; } h1 span { color:var(--accent); }
+  .subtitle { font-size:.78rem; opacity:.85; }
+  .me-chip { display:flex; align-items:center; gap:8px; background:rgba(255,255,255,.12); padding:6px 12px; border-radius:999px; font-size:.85rem; }
+  .me-chip button { background:none; border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:6px; padding:3px 8px; font-size:.72rem; cursor:pointer; }
+  nav { position:sticky; top:0; z-index:10; background:var(--card); border-bottom:1px solid var(--border); overflow-x:auto; white-space:nowrap; }
+  nav .inner { display:flex; max-width:1200px; margin:0 auto; }
+  nav button { background:none; border:none; padding:12px 14px; font-size:.83rem; font-weight:600; color:var(--ink-soft); cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; }
+  nav button.active { color:var(--primary); border-bottom-color:var(--accent); }
+  main { max-width:1200px; margin:0 auto; padding:18px 16px 60px; }
+  .panel { display:none; } .panel.active { display:block; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:14px; }
+  .card h2 { margin:0 0 4px; font-size:1.05rem; } .card .sub { color:var(--ink-soft); font-size:.82rem; margin-bottom:12px; }
+  .row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .row:last-child { border-bottom:none; }
+  .row.done .title { text-decoration:line-through; color:var(--ink-soft); }
+  .row .title { flex:1; font-size:.94rem; min-width:140px; } .row .meta { font-size:.76rem; color:var(--ink-soft); width:100%; }
+  .pill { display:inline-block; padding:3px 10px; border-radius:999px; font-size:.72rem; font-weight:600; }
+  .pill.needed,.pill.pending,.pill.unpaid { background:#fbe3e0; color:var(--danger); }
+  .pill.bought,.pill.done,.pill.paid,.pill.confirmed { background:#ddeee1; color:var(--success); }
+  .pill.progress { background:var(--accent-soft); color:#8a6a1a; }
+  button.mini { background:var(--primary); color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:.78rem; cursor:pointer; }
+  button.mini.ghost { background:transparent; color:var(--danger); border:1px solid var(--danger); }
+  select,input,textarea { font-family:inherit; font-size:.88rem; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--ink); width:100%; }
+  .add-form { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .add-form input,.add-form select { flex:1; min-width:110px; }
+  input[type=checkbox] { width:20px; height:20px; accent-color:var(--primary); flex-shrink:0; }
+  .empty { color:var(--ink-soft); font-size:.88rem; padding:10px 0; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; } @media (max-width:640px){ .grid2{grid-template-columns:1fr;} }
+  .statrow { display:flex; justify-content:space-around; text-align:center; flex-wrap:wrap; gap:10px; }
+  .stat .num { font-size:1.6rem; font-weight:700; color:var(--primary); } .stat .label { font-size:.74rem; color:var(--ink-soft); }
+  .tag { display:inline-block; background:var(--accent-soft); color:#8a6a1a; padding:2px 9px; border-radius:6px; font-size:.72rem; font-weight:600; margin-right:6px; }
+  .badge-elig { font-size:.72rem; padding:2px 8px; border-radius:6px; font-weight:600; }
+  .badge-elig.yes { background:#ddeee1; color:var(--success); } .badge-elig.check { background:var(--accent-soft); color:#8a6a1a; }
+  textarea { min-height:56px; resize:vertical; }
+  #authScreen { max-width:380px; margin:60px auto; }
+  #authScreen .card { text-align:left; }
+  #authScreen h1 { color:var(--primary); text-align:center; margin-bottom:4px; }
+  #authScreen .sw { text-align:center; margin-top:10px; font-size:.85rem; }
+  #authScreen .sw a { color:var(--primary); cursor:pointer; text-decoration:underline; }
+  .err { color:var(--danger); font-size:.82rem; margin-top:6px; }
+  .full-btn { width:100%; margin-top:8px; }
+  #appRoot { display:none; }
+</style>
+</head>
+<body>
+
+<div id="authScreen">
+  <h1>Velvet <span>Dirty Soda</span></h1>
+  <div style="text-align:center;color:var(--ink-soft);font-size:.85rem;margin-bottom:16px;">Business HQ — sign in to continue</div>
+  <div class="card">
+    <input type="text" id="authName" placeholder="Your name (Dalila or Kaylee)" style="margin-bottom:8px;">
+    <input type="email" id="authEmail" placeholder="Email" style="margin-bottom:8px;">
+    <input type="password" id="authPassword" placeholder="Password" style="margin-bottom:8px;">
+    <button class="mini full-btn" id="authSubmitBtn" onclick="handleAuthSubmit()">Sign In</button>
+    <div class="err" id="authError"></div>
+    <div class="sw">
+      <span id="authSwitchText">Need an account?</span> <a id="authSwitchLink" onclick="toggleAuthMode()">Sign up</a>
+    </div>
+  </div>
+</div>
+
+<div id="appRoot">
+<header>
+  <div class="head-row">
+    <div><h1>Velvet <span>Dirty Soda</span> — Business HQ</h1><div class="subtitle">Dalila &amp; Kaylee's shared workspace · Serving Austin, Kyle, Buda, Lakeway &amp; Bee Cave</div></div>
+    <div class="me-chip"><span id="meName">You</span><button onclick="doSignOut()">Sign out</button></div>
+  </div>
+</header>
+<nav><div class="inner" id="tabBar"></div></nav>
+<main>
+  <div class="panel" id="panel-dashboard"></div>
+  <div class="panel" id="panel-todo"></div>
+  <div class="panel" id="panel-shopping"></div>
+  <div class="panel" id="panel-inventory"></div>
+  <div class="panel" id="panel-calendar"></div>
+  <div class="panel" id="panel-compliance"></div>
+  <div class="panel" id="panel-menu"></div>
+  <div class="panel" id="panel-sales"></div>
+  <div class="panel" id="panel-bookkeeping"></div>
+  <div class="panel" id="panel-staff"></div>
+  <div class="panel" id="panel-customers"></div>
+  <div class="panel" id="panel-ownership"></div>
+</main>
+</div>
+
+<script>
+// ===================== CONFIG — fill these in from Supabase Project Settings > API =====================
+const SUPABASE_URL = "https://kyftmjcbohsebikipxby.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_qOwflPPYwDiOXMOebomJVw_YnbPnOmq";
+// ==========================================================================================================
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const TABS = [
+  { id:'dashboard', label:'Dashboard' },
+  { id:'todo', label:'To-Do' },
+  { id:'shopping', label:'Shopping List' },
+  { id:'inventory', label:'Inventory' },
+  { id:'calendar', label:'Calendar & Bookings' },
+  { id:'compliance', label:'Compliance' },
+  { id:'menu', label:'Menu & Recipes' },
+  { id:'sales', label:'Sales' },
+  { id:'bookkeeping', label:'Bookkeeping' },
+  { id:'staff', label:'Staff & Pay' },
+  { id:'customers', label:'Customers' },
+  { id:'ownership', label:'Ownership & Schedule' },
+];
+
+let currentUser = null; // { id, email, name }
+let authMode = 'signin';
+
+const state = {
+  todos:[], shopping:[], calendar:[], compliance:[], recipes:[], menu:[],
+  bookkeeping:[], ownership:null, inventory:[], recipeIngredients:[], sales:[],
+  bookings:[], shifts:[], customers:[]
+};
+
+function esc(s){ const d=document.createElement('div'); d.textContent=(s===undefined||s===null)?'':String(s); return d.innerHTML; }
+function fmtMoney(n){ const v=Number(n); if(isNaN(v)) return '$0.00'; return '$'+v.toFixed(2); }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+// ---------------- AUTH ----------------
+function toggleAuthMode(){
+  authMode = authMode === 'signin' ? 'signup' : 'signin';
+  document.getElementById('authSubmitBtn').textContent = authMode === 'signin' ? 'Sign In' : 'Sign Up';
+  document.getElementById('authSwitchText').textContent = authMode === 'signin' ? 'Need an account?' : 'Already have an account?';
+  document.getElementById('authSwitchLink').textContent = authMode === 'signin' ? 'Sign up' : 'Sign in';
+  document.getElementById('authError').textContent = '';
+}
+async function handleAuthSubmit(){
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const name = document.getElementById('authName').value.trim();
+  const errEl = document.getElementById('authError');
+  errEl.textContent = '';
+  if (!email || !password) { errEl.textContent = 'Enter an email and password.'; return; }
+  try {
+    if (authMode === 'signup') {
+      if (!name) { errEl.textContent = 'Enter your name.'; return; }
+      const { error } = await sb.auth.signUp({ email, password, options: { data: { display_name: name } } });
+      if (error) throw error;
+      errEl.style.color = 'var(--success)';
+      errEl.textContent = 'Account created! Check your email to confirm, then sign in.';
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    }
+  } catch (e) {
+    errEl.style.color = 'var(--danger)';
+    errEl.textContent = e.message || 'Something went wrong.';
+  }
+}
+async function doSignOut(){ await sb.auth.signOut(); }
+
+sb.auth.onAuthStateChange((event, session) => {
+  if (session && session.user) {
+    currentUser = { id: session.user.id, email: session.user.email, name: session.user.user_metadata?.display_name || session.user.email };
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('appRoot').style.display = 'block';
+    document.getElementById('meName').textContent = currentUser.name;
+    boot();
+  } else {
+    currentUser = null;
+    document.getElementById('authScreen').style.display = 'block';
+    document.getElementById('appRoot').style.display = 'none';
+  }
+});
+
+// ---------------- BOOT ----------------
+let booted = false;
+function boot(){
+  if (booted) return;
+  booted = true;
+  buildTabs();
+  subscribeAll();
+  showTab('dashboard');
+}
+function buildTabs(){
+  const bar = document.getElementById('tabBar');
+  bar.innerHTML = '';
+  TABS.forEach((t,i)=>{
+    const b = document.createElement('button');
+    b.textContent = t.label; b.dataset.tab = t.id;
+    if (i===0) b.classList.add('active');
+    b.onclick = () => showTab(t.id);
+    bar.appendChild(b);
+  });
+}
+function showTab(id){
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.tab===id));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+id));
+  renderAll();
+}
+function activeTab(){ const el=document.querySelector('nav button.active'); return el?el.dataset.tab:'dashboard'; }
+
+// ---------------- SUBSCRIPTIONS (initial load + realtime) ----------------
+function subscribeAll(){
+  const tables = [
+    ['todos','todos'], ['shopping_items','shopping'], ['calendar_events','calendar'],
+    ['compliance_items','compliance'], ['recipes','recipes'], ['menu_items','menu'],
+    ['bookkeeping','bookkeeping'], ['inventory_items','inventory'], ['recipe_ingredients','recipeIngredients'],
+    ['sales','sales'], ['booking_requests','bookings'], ['shifts','shifts'], ['customers','customers']
+  ];
+  tables.forEach(([table, key]) => {
+    loadTable(table, key);
+    sb.channel('rt-'+table)
+      .on('postgres_changes', { event:'*', schema:'public', table }, () => loadTable(table, key))
+      .subscribe();
+  });
+  loadOwnership();
+  sb.channel('rt-business_meta')
+    .on('postgres_changes', { event:'*', schema:'public', table:'business_meta' }, () => loadOwnership())
+    .subscribe();
+}
+async function loadTable(table, key){
+  const { data, error } = await sb.from(table).select('*').order('created_at', { ascending:false });
+  if (!error) { state[key] = data || []; renderAll(); }
+}
+async function loadOwnership(){
+  const { data } = await sb.from('business_meta').select('*').eq('id','ownership').maybeSingle();
+  state.ownership = data || null;
+  renderAll();
+}
+function renderAll(){
+  const t = activeTab();
+  if (t==='dashboard') renderDashboard();
+  if (t==='todo') renderTodo();
+  if (t==='shopping') renderShopping();
+  if (t==='inventory') renderInventory();
+  if (t==='calendar') renderCalendar();
+  if (t==='compliance') renderCompliance();
+  if (t==='menu') renderMenu();
+  if (t==='sales') renderSales();
+  if (t==='bookkeeping') renderBookkeeping();
+  if (t==='staff') renderStaff();
+  if (t==='customers') renderCustomers();
+  if (t==='ownership') renderOwnership();
+}
+
+// ---------------- DASHBOARD ----------------
+function renderDashboard(){
+  const openTodos = state.todos.filter(x=>!x.done).length;
+  const needed = state.shopping.filter(x=>x.status!=='bought').length;
+  const openCompliance = state.compliance.filter(x=>x.status!=='done').length;
+  const income = state.bookkeeping.filter(x=>x.type==='income').reduce((a,b)=>a+(Number(b.amount)||0),0);
+  const expense = state.bookkeeping.filter(x=>x.type==='expense').reduce((a,b)=>a+(Number(b.amount)||0),0);
+  const salesTotal = state.sales.reduce((a,b)=>a+(Number(b.total)||0),0);
+  const lowStock = state.inventory.filter(i=>Number(i.qty_on_hand)<=Number(i.low_stock_threshold||0)).length;
+  const pendingBookings = state.bookings.filter(b=>b.status==='pending').length;
+
+  document.getElementById('panel-dashboard').innerHTML = `
+    <div class="card">
+      <h2>Welcome back${currentUser?', '+esc(currentUser.name):''}</h2>
+      <div class="sub">Everything for Velvet Dirty Soda, in one place.</div>
+      <div class="statrow">
+        <div class="stat"><div class="num">${openTodos}</div><div class="label">Open to-dos</div></div>
+        <div class="stat"><div class="num">${needed}</div><div class="label">Items needed</div></div>
+        <div class="stat"><div class="num">${openCompliance}</div><div class="label">Compliance open</div></div>
+        <div class="stat"><div class="num">${lowStock}</div><div class="label">Low stock</div></div>
+        <div class="stat"><div class="num">${pendingBookings}</div><div class="label">Pending bookings</div></div>
+        <div class="stat"><div class="num">${fmtMoney(salesTotal)}</div><div class="label">Total sales logged</div></div>
+        <div class="stat"><div class="num">${fmtMoney(income-expense)}</div><div class="label">Net (bookkeeping)</div></div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>Up next</h2>${renderMiniList(state.todos.filter(x=>!x.done).slice(0,5), x=>x.title)}</div>
+      <div class="card"><h2>Still need to buy</h2>${renderMiniList(state.shopping.filter(x=>x.status!=='bought').slice(0,5), x=>x.name)}</div>
+    </div>
+  `;
+}
+function renderMiniList(items, labelFn){
+  if (!items.length) return '<div class="empty">Nothing here — nice work 🎉</div>';
+  return '<div>'+items.map(x=>`<div class="row"><span class="title">${esc(labelFn(x))}</span></div>`).join('')+'</div>';
+}
+
+// ---------------- TO-DO ----------------
+function renderTodo(){
+  const items = state.todos;
+  document.getElementById('panel-todo').innerHTML = `
+    <div class="card">
+      <h2>Shared To-Do List</h2>
+      <div class="add-form">
+        <input type="text" id="todoInput" placeholder="Add a task…">
+        <select id="todoAssignee"><option value="">Unassigned</option><option value="Dalila">Dalila</option><option value="Kaylee">Kaylee</option><option value="Both">Both</option></select>
+        <input type="date" id="todoDue">
+        <button class="mini" onclick="addTodo()">Add</button>
+      </div>
+      ${items.length ? items.map(t=>`
+        <div class="row ${t.done?'done':''}">
+          <input type="checkbox" ${t.done?'checked':''} onchange="toggleTodo('${t.id}', this.checked)">
+          <div style="flex:1"><div class="title">${esc(t.title)}</div>
+            <div class="meta">${t.assignee?esc(t.assignee):'Unassigned'}${t.due_date?' · due '+esc(t.due_date):''}${t.added_by?' · added by '+esc(t.added_by):''}</div></div>
+          <button class="mini ghost" onclick="deleteRow('todos','${t.id}')">Delete</button>
+        </div>`).join('') : '<div class="empty">No tasks yet.</div>'}
+    </div>`;
+}
+async function addTodo(){
+  const title = document.getElementById('todoInput').value.trim(); if(!title) return;
+  const assignee = document.getElementById('todoAssignee').value;
+  const due_date = document.getElementById('todoDue').value || null;
+  await sb.from('todos').insert({ title, assignee, due_date, added_by: currentUser.name });
+  document.getElementById('todoInput').value=''; document.getElementById('todoDue').value='';
+}
+async function toggleTodo(id, val){ await sb.from('todos').update({ done: val }).eq('id', id); }
+
+// ---------------- SHOPPING ----------------
+function renderShopping(){
+  const items = state.shopping;
+  const groups = {}; items.forEach(i=>{ const c=i.category||'Other'; (groups[c]=groups[c]||[]).push(i); });
+  document.getElementById('panel-shopping').innerHTML = `
+    <div class="card">
+      <h2>Shopping / Purchase List</h2>
+      <div class="add-form">
+        <input type="text" id="shopName" placeholder="Item name…">
+        <input type="text" id="shopCategory" placeholder="Category">
+        <input type="text" id="shopNotes" placeholder="Price / notes">
+        <button class="mini" onclick="addShopping()">Add</button>
+      </div>
+      ${Object.keys(groups).length ? Object.entries(groups).map(([cat,arr])=>`
+        <div style="margin-top:10px;"><span class="tag">${esc(cat)}</span></div>
+        ${arr.map(i=>`
+          <div class="row">
+            <span class="pill ${i.status==='bought'?'bought':'needed'}">${i.status==='bought'?'Bought':'Needed'}</span>
+            <div style="flex:1"><div class="title">${esc(i.name)}</div><div class="meta">${esc(i.notes||'')}</div></div>
+            <button class="mini" onclick="toggleShopping('${i.id}','${i.status==='bought'?'needed':'bought'}')">${i.status==='bought'?'Mark needed':'Mark bought'}</button>
+            <button class="mini ghost" onclick="deleteRow('shopping_items','${i.id}')">Delete</button>
+          </div>`).join('')
+      ).join('') : '<div class="empty">Nothing on the list yet.</div>'}
+    </div>`;
+}
+async function addShopping(){
+  const name = document.getElementById('shopName').value.trim(); if(!name) return;
+  const category = document.getElementById('shopCategory').value.trim() || 'Other';
+  const notes = document.getElementById('shopNotes').value.trim();
+  await sb.from('shopping_items').insert({ name, category, notes, status:'needed', added_by: currentUser.name });
+  document.getElementById('shopName').value=''; document.getElementById('shopCategory').value=''; document.getElementById('shopNotes').value='';
+}
+async function toggleShopping(id, status){ await sb.from('shopping_items').update({ status }).eq('id', id); }
+
+// ---------------- INVENTORY ----------------
+function renderInventory(){
+  const items = state.inventory;
+  document.getElementById('panel-inventory').innerHTML = `
+    <div class="card">
+      <h2>Inventory</h2>
+      <div class="sub">Stock on hand. Low-stock items are flagged red. Sales automatically use this via recipes.</div>
+      <div class="add-form">
+        <input type="text" id="invName" placeholder="Item (e.g. Club Soda)">
+        <input type="text" id="invUnit" placeholder="Unit (e.g. bottle, oz)">
+        <input type="number" step="0.01" id="invQty" placeholder="Qty on hand">
+        <input type="number" step="0.01" id="invLow" placeholder="Low-stock alert at">
+        <input type="number" step="0.01" id="invCost" placeholder="Cost per unit">
+        <button class="mini" onclick="addInventory()">Add</button>
+      </div>
+      ${items.length ? items.map(i=>{
+        const low = Number(i.qty_on_hand) <= Number(i.low_stock_threshold||0);
+        return `<div class="row">
+          <span class="pill ${low?'needed':'bought'}">${low?'Low stock':'OK'}</span>
+          <div style="flex:1"><div class="title">${esc(i.name)}</div>
+          <div class="meta">${esc(i.qty_on_hand)} ${esc(i.unit||'')} on hand · alert below ${esc(i.low_stock_threshold||0)}${i.unit_cost?' · '+fmtMoney(i.unit_cost)+'/unit':''}</div></div>
+          <input type="number" step="0.01" value="${esc(i.qty_on_hand)}" style="width:90px;" onchange="updateInventoryQty('${i.id}', this.value)">
+          <button class="mini ghost" onclick="deleteRow('inventory_items','${i.id}')">Delete</button>
+        </div>`;
+      }).join('') : '<div class="empty">No inventory items yet.</div>'}
+    </div>`;
+}
+async function addInventory(){
+  const name = document.getElementById('invName').value.trim(); if(!name) return;
+  const unit = document.getElementById('invUnit').value.trim();
+  const qty_on_hand = parseFloat(document.getElementById('invQty').value)||0;
+  const low_stock_threshold = parseFloat(document.getElementById('invLow').value)||0;
+  const unit_cost = parseFloat(document.getElementById('invCost').value)||null;
+  await sb.from('inventory_items').insert({ name, unit, qty_on_hand, low_stock_threshold, unit_cost });
+  ['invName','invUnit','invQty','invLow','invCost'].forEach(id=>document.getElementById(id).value='');
+}
+async function updateInventoryQty(id, val){ await sb.from('inventory_items').update({ qty_on_hand: parseFloat(val)||0 }).eq('id', id); }
+
+// ---------------- CALENDAR & BOOKINGS ----------------
+const SEARCH_AREAS = ['Austin','Kyle','Buda','Lakeway','Bee Cave','Dripping Springs'];
+function marketSearchUrl(area){
+  const q = encodeURIComponent(`new pop-up market vendor application ${area} TX 2026`);
+  return `https://www.google.com/search?q=${q}`;
+}
+function gigSearchUrl(area){
+  const q = encodeURIComponent(`craft fair vendor gigs booth application ${area} TX this month`);
+  return `https://www.google.com/search?q=${q}`;
+}
+function renderCalendar(){
+  const items = state.calendar.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const bookings = state.bookings;
+  document.getElementById('panel-calendar').innerHTML = `
+    <div class="card">
+      <h2>Find New Markets &amp; Gigs (free — opens Google)</h2>
+      <div class="sub">One-click searches for new pop-ups and vendor gigs by area. No cost, no API — just opens a search in a new tab.</div>
+      ${SEARCH_AREAS.map(a=>`
+        <div class="row">
+          <span class="title">${esc(a)}</span>
+          <a class="mini" style="text-decoration:none;" href="${marketSearchUrl(a)}" target="_blank" rel="noopener">Search markets</a>
+          <a class="mini" style="text-decoration:none;" href="${gigSearchUrl(a)}" target="_blank" rel="noopener">Search vendor gigs</a>
+        </div>`).join('')}
+    </div>
+    <div class="card">
+      <h2>Pop-Up &amp; Market Day Calendar</h2>
+      <div class="sub">Recurring markets and pop-ups across Austin, Kyle, Buda, Lakeway &amp; Bee Cave. Verify eligibility and add more as you find them.</div>
+      <div class="add-form">
+        <input type="text" id="calName" placeholder="Market / event name">
+        <input type="text" id="calSchedule" placeholder="Day &amp; time">
+        <input type="text" id="calLocation" placeholder="Location">
+        <button class="mini" onclick="addCalendar()">Add</button>
+      </div>
+      ${items.length ? items.map(i=>`
+        <div class="row">
+          <div style="flex:1"><div class="title">${esc(i.name)} ${i.eligibility?`<span class="badge-elig ${i.eligibility==='open'?'yes':'check'}">${i.eligibility==='open'?'Open to vendors like us':'Verify eligibility'}</span>`:''}</div>
+          <div class="meta">${esc(i.schedule||'')}${i.location?' · '+esc(i.location):''}</div>
+          ${i.notes?`<div class="meta">${esc(i.notes)}</div>`:''}</div>
+          <button class="mini ghost" onclick="deleteRow('calendar_events','${i.id}')">Delete</button>
+        </div>`).join('') : '<div class="empty">No events yet.</div>'}
+    </div>
+    <div class="card">
+      <h2>Private Booking Requests</h2>
+      <div class="sub">Birthdays, weddings, corporate events — track leads and deposits here.</div>
+      <div class="add-form" style="flex-wrap:wrap;">
+        <input type="text" id="bkgName" placeholder="Customer name">
+        <input type="text" id="bkgContact" placeholder="Contact (phone/email)">
+        <input type="date" id="bkgDate">
+        <input type="text" id="bkgType" placeholder="Event type">
+        <input type="number" id="bkgHeadcount" placeholder="Headcount">
+        <input type="text" id="bkgLocation" placeholder="Location">
+        <input type="number" step="0.01" id="bkgDeposit" placeholder="Deposit $">
+        <button class="mini" onclick="addBooking()">Add booking</button>
+      </div>
+      ${bookings.length ? bookings.map(b=>`
+        <div class="row">
+          <span class="pill ${b.status==='confirmed'?'confirmed':'pending'}">${esc(b.status||'pending')}</span>
+          <div style="flex:1"><div class="title">${esc(b.customer_name)} — ${esc(b.event_type||'')}</div>
+          <div class="meta">${esc(b.event_date||'')}${b.location?' · '+esc(b.location):''}${b.headcount?' · '+esc(b.headcount)+' guests':''} · deposit ${fmtMoney(b.deposit_amount)} (${esc(b.deposit_status||'unpaid')})</div></div>
+          <select onchange="updateBookingStatus('${b.id}', this.value)" style="width:auto;">
+            <option value="pending" ${b.status==='pending'?'selected':''}>Pending</option>
+            <option value="confirmed" ${b.status==='confirmed'?'selected':''}>Confirmed</option>
+            <option value="completed" ${b.status==='completed'?'selected':''}>Completed</option>
+          </select>
+          <button class="mini ghost" onclick="deleteRow('booking_requests','${b.id}')">Delete</button>
+        </div>`).join('') : '<div class="empty">No booking requests yet.</div>'}
+    </div>`;
+}
+async function addCalendar(){
+  const name = document.getElementById('calName').value.trim(); if(!name) return;
+  const schedule = document.getElementById('calSchedule').value.trim();
+  const location = document.getElementById('calLocation').value.trim();
+  await sb.from('calendar_events').insert({ name, schedule, location, eligibility:'check', added_by: currentUser.name });
+  document.getElementById('calName').value=''; document.getElementById('calSchedule').value=''; document.getElementById('calLocation').value='';
+}
+async function addBooking(){
+  const customer_name = document.getElementById('bkgName').value.trim(); if(!customer_name) return;
+  const contact = document.getElementById('bkgContact').value.trim();
+  const event_date = document.getElementById('bkgDate').value || null;
+  const event_type = document.getElementById('bkgType').value.trim();
+  const headcount = parseInt(document.getElementById('bkgHeadcount').value)||null;
+  const location = document.getElementById('bkgLocation').value.trim();
+  const deposit_amount = parseFloat(document.getElementById('bkgDeposit').value)||0;
+  await sb.from('booking_requests').insert({ customer_name, contact, event_date, event_type, headcount, location, deposit_amount, status:'pending', deposit_status: deposit_amount>0?'paid':'unpaid' });
+  ['bkgName','bkgContact','bkgDate','bkgType','bkgHeadcount','bkgLocation','bkgDeposit'].forEach(id=>document.getElementById(id).value='');
+}
+async function updateBookingStatus(id, status){ await sb.from('booking_requests').update({ status }).eq('id', id); }
+
+// ---------------- COMPLIANCE ----------------
+function renderCompliance(){
+  const items = state.compliance;
+  document.getElementById('panel-compliance').innerHTML = `
+    <div class="card">
+      <h2>Legal &amp; Compliance Checklist</h2>
+      <div class="sub">Not legal advice — confirm anything final with a licensed professional.</div>
+      <div class="add-form">
+        <input type="text" id="compTitle" placeholder="Compliance item…">
+        <select id="compStatus"><option value="pending">Pending</option><option value="progress">In progress</option><option value="done">Done</option></select>
+        <button class="mini" onclick="addCompliance()">Add</button>
+      </div>
+      ${items.length ? items.map(i=>`
+        <div class="row">
+          <span class="pill ${i.status||'pending'}">${(i.status||'pending')==='progress'?'In progress':(i.status==='done'?'Done':'Pending')}</span>
+          <div style="flex:1"><div class="title">${esc(i.title)}</div>${i.notes?`<div class="meta">${esc(i.notes)}</div>`:''}</div>
+          <select onchange="updateComplianceStatus('${i.id}', this.value)" style="width:auto;">
+            <option value="pending" ${i.status==='pending'?'selected':''}>Pending</option>
+            <option value="progress" ${i.status==='progress'?'selected':''}>In progress</option>
+            <option value="done" ${i.status==='done'?'selected':''}>Done</option>
+          </select>
+          <button class="mini ghost" onclick="deleteRow('compliance_items','${i.id}')">Delete</button>
+        </div>`).join('') : '<div class="empty">Nothing tracked yet.</div>'}
+    </div>`;
+}
+async function addCompliance(){
+  const title = document.getElementById('compTitle').value.trim(); if(!title) return;
+  const status = document.getElementById('compStatus').value;
+  await sb.from('compliance_items').insert({ title, status, added_by: currentUser.name });
+  document.getElementById('compTitle').value='';
+}
+async function updateComplianceStatus(id, status){ await sb.from('compliance_items').update({ status }).eq('id', id); }
+
+// ---------------- MENU & RECIPES ----------------
+function renderMenu(){
+  const items = state.menu;
+  const groups = {}; items.forEach(i=>{ const c=i.category||'Other'; (groups[c]=groups[c]||[]).push(i); });
+  const recipeOptions = state.recipes.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('');
+  document.getElementById('panel-menu').innerHTML = `
+    <div class="card">
+      <h2>Menu &amp; Pricing</h2>
+      <div class="add-form" style="flex-wrap:wrap;">
+        <input type="text" id="menuName" placeholder="Drink name">
+        <input type="text" id="menuCategory" placeholder="Category">
+        <input type="text" id="menuPrice" placeholder="Price (e.g. 24oz $2.75)">
+        <input type="number" step="0.01" id="menuCost" placeholder="Cost to make $">
+        <select id="menuRecipe"><option value="">No linked recipe</option>${recipeOptions}</select>
+        <button class="mini" onclick="addMenu()">Add</button>
+      </div>
+      ${Object.keys(groups).length ? Object.entries(groups).map(([cat,arr])=>`
+        <div style="margin-top:10px;"><span class="tag">${esc(cat)}</span></div>
+        ${arr.map(i=>`
+          <div class="row">
+            <div style="flex:1"><div class="title">${esc(i.name)}</div>
+            <div class="meta">${esc(i.price||'')}${i.cost?' · cost '+fmtMoney(i.cost):''}${i.notes?' · '+esc(i.notes):''}</div></div>
+            <button class="mini ghost" onclick="deleteRow('menu_items','${i.id}')">Delete</button>
+          </div>`).join('')
+      ).join('') : '<div class="empty">No menu items yet.</div>'}
+    </div>
+    <div class="card">
+      <h2>Recipes</h2>
+      <div class="add-form" style="flex-direction:column;">
+        <input type="text" id="recName" placeholder="Recipe name">
+        <textarea id="recIngredients" placeholder="Ingredients (free text)"></textarea>
+        <textarea id="recSteps" placeholder="Steps"></textarea>
+        <button class="mini" onclick="addRecipe()" style="align-self:flex-start;">Add recipe</button>
+      </div>
+      ${state.recipes.length ? state.recipes.map(r=>`
+        <div class="row" style="align-items:flex-start;">
+          <div style="flex:1"><div class="title">${esc(r.name)}</div>
+          ${r.ingredients?`<div class="meta"><b>Ingredients:</b> ${esc(r.ingredients)}</div>`:''}
+          ${r.steps?`<div class="meta"><b>Steps:</b> ${esc(r.steps)}</div>`:''}
+          ${renderRecipeInventoryLinks(r.id)}</div>
+          <button class="mini ghost" onclick="deleteRow('recipes','${r.id}')">Delete</button>
+        </div>`).join('') : '<div class="empty">No recipes added yet.</div>'}
+    </div>`;
+}
+function renderRecipeInventoryLinks(recipeId){
+  const links = state.recipeIngredients.filter(ri=>ri.recipe_id===recipeId);
+  if (!links.length) return '';
+  return '<div class="meta"><b>Uses:</b> ' + links.map(l=>{
+    const inv = state.inventory.find(i=>i.id===l.inventory_item_id);
+    return inv ? `${esc(inv.name)} (${esc(l.qty_per_serving)} ${esc(inv.unit||'')})` : '';
+  }).filter(Boolean).join(', ') + '</div>';
+}
+async function addMenu(){
+  const name = document.getElementById('menuName').value.trim(); if(!name) return;
+  const category = document.getElementById('menuCategory').value.trim() || 'Other';
+  const price = document.getElementById('menuPrice').value.trim();
+  const cost = parseFloat(document.getElementById('menuCost').value)||null;
+  const recipe_id = document.getElementById('menuRecipe').value || null;
+  await sb.from('menu_items').insert({ name, category, price, cost, recipe_id });
+  ['menuName','menuCategory','menuPrice','menuCost'].forEach(id=>document.getElementById(id).value='');
+}
+async function addRecipe(){
+  const name = document.getElementById('recName').value.trim(); if(!name) return;
+  const ingredients = document.getElementById('recIngredients').value.trim();
+  const steps = document.getElementById('recSteps').value.trim();
+  await sb.from('recipes').insert({ name, ingredients, steps });
+  document.getElementById('recName').value=''; document.getElementById('recIngredients').value=''; document.getElementById('recSteps').value='';
+}
+
+// ---------------- SALES ----------------
+function renderSales(){
+  const items = state.sales;
+  const menuOptions = state.menu.map(m=>`<option value="${esc(m.name)}">${esc(m.name)}</option>`).join('');
+  const eventOptions = state.calendar.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  const today = items.filter(s=>(s.created_at||'').slice(0,10)===todayStr());
+  const todayTotal = today.reduce((a,b)=>a+(Number(b.total)||0),0);
+  document.getElementById('panel-sales').innerHTML = `
+    <div class="card">
+      <h2>Sales Log</h2>
+      <div class="sub">Log each sale — today's total: <b>${fmtMoney(todayTotal)}</b> (${today.length} sales)</div>
+      <div class="add-form" style="flex-wrap:wrap;">
+        <input list="menuList" type="text" id="saleItem" placeholder="Item name">
+        <datalist id="menuList">${menuOptions}</datalist>
+        <input type="number" id="saleQty" placeholder="Qty" value="1" min="1">
+        <input type="number" step="0.01" id="salePrice" placeholder="Unit price $">
+        <select id="saleEvent"><option value="">No event linked</option>${eventOptions}</select>
+        <select id="salePayment"><option value="card">Card</option><option value="cash">Cash</option><option value="other">Other</option></select>
+        <button class="mini" onclick="addSale()">Log sale</button>
+      </div>
+      ${items.length ? items.slice(0,30).map(s=>`
+        <div class="row">
+          <div style="flex:1"><div class="title">${esc(s.item_name)} × ${esc(s.quantity)} — ${fmtMoney(s.total)}</div>
+          <div class="meta">${(s.created_at||'').slice(0,16).replace('T',' ')} · ${esc(s.payment_method||'')}${s.sold_by?' · '+esc(s.sold_by):''}</div></div>
+          <button class="mini ghost" onclick="deleteRow('sales','${s.id}')">Delete</button>
+        </div>`).join('') : '<div class="empty">No sales logged yet.</div>'}
+    </div>`;
+}
+async function addSale(){
+  const item_name = document.getElementById('saleItem').value.trim(); if(!item_name) return;
+  const quantity = parseInt(document.getElementById('saleQty').value)||1;
+  const unit_price = parseFloat(document.getElementById('salePrice').value)||0;
+  const event_id = document.getElementById('saleEvent').value || null;
+  const payment_method = document.getElementById('salePayment').value;
+  const total = unit_price * quantity;
+  const menuItem = state.menu.find(m=>m.name.toLowerCase()===item_name.toLowerCase());
+  await sb.from('sales').insert({ item_name, category: menuItem?menuItem.category:null, quantity, unit_price, total, payment_method, event_id, sold_by: currentUser.name });
+  // best-effort inventory depletion via linked recipe
+  try {
+    if (menuItem && menuItem.recipe_id) {
+      const links = state.recipeIngredients.filter(ri=>ri.recipe_id===menuItem.recipe_id);
+      for (const l of links) {
+        const inv = state.inventory.find(i=>i.id===l.inventory_item_id);
+        if (inv) {
+          const newQty = Number(inv.qty_on_hand) - (Number(l.qty_per_serving)*quantity);
+          await sb.from('inventory_items').update({ qty_on_hand: newQty }).eq('id', inv.id);
+        }
+      }
+    }
+  } catch(e) { /* non-blocking */ }
+  document.getElementById('saleItem').value=''; document.getElementById('salePrice').value=''; document.getElementById('saleQty').value='1';
+}
+
+// ---------------- BOOKKEEPING ----------------
+function renderBookkeeping(){
+  const items = state.bookkeeping;
+  const income = items.filter(x=>x.type==='income').reduce((a,b)=>a+(Number(b.amount)||0),0);
+  const expense = items.filter(x=>x.type==='expense').reduce((a,b)=>a+(Number(b.amount)||0),0);
+  const salesTotal = state.sales.reduce((a,b)=>a+(Number(b.total)||0),0);
+  document.getElementById('panel-bookkeeping').innerHTML = `
+    <div class="card">
+      <h2>Bookkeeping</h2>
+      <div class="sub">Not a tax filing tool — use a licensed preparer for that.</div>
+      <div class="statrow">
+        <div class="stat"><div class="num">${fmtMoney(income)}</div><div class="label">Manual income entries</div></div>
+        <div class="stat"><div class="num">${fmtMoney(salesTotal)}</div><div class="label">Logged sales total</div></div>
+        <div class="stat"><div class="num">${fmtMoney(expense)}</div><div class="label">Total expenses</div></div>
+        <div class="stat"><div class="num">${fmtMoney(income+salesTotal-expense)}</div><div class="label">Net</div></div>
+      </div>
+      <div class="add-form">
+        <input type="date" id="bkDate"><select id="bkType"><option value="expense">Expense</option><option value="income">Income</option></select>
+        <input type="text" id="bkCategory" placeholder="Category">
+        <input type="number" step="0.01" id="bkAmount" placeholder="Amount">
+        <input type="text" id="bkNote" placeholder="Note">
+        <button class="mini" onclick="addBookkeeping()">Add</button>
+      </div>
+      ${items.length ? items.map(i=>`
+        <div class="row"><div style="flex:1"><div class="title">${esc(i.category||i.type)} — ${i.type==='income'?'+':'-'}${fmtMoney(i.amount)}</div>
+        <div class="meta">${esc(i.date||'')}${i.note?' · '+esc(i.note):''}${i.added_by?' · '+esc(i.added_by):''}</div></div>
+        <button class="mini ghost" onclick="deleteRow('bookkeeping','${i.id}')">Delete</button></div>`).join('') : '<div class="empty">No entries yet.</div>'}
+    </div>`;
+}
+async function addBookkeeping(){
+  const amount = parseFloat(document.getElementById('bkAmount').value); if(isNaN(amount)) return;
+  const date = document.getElementById('bkDate').value || todayStr();
+  const type = document.getElementById('bkType').value;
+  const category = document.getElementById('bkCategory').value.trim();
+  const note = document.getElementById('bkNote').value.trim();
+  await sb.from('bookkeeping').insert({ date, type, category, amount, note, added_by: currentUser.name });
+  document.getElementById('bkAmount').value=''; document.getElementById('bkCategory').value=''; document.getElementById('bkNote').value='';
+}
+
+// ---------------- STAFF & PAY ----------------
+function renderStaff(){
+  const items = state.shifts;
+  const eventOptions = state.calendar.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  const owed = items.filter(s=>s.paid_status!=='paid').reduce((a,b)=>a+(Number(b.pay_amount)||0),0);
+  document.getElementById('panel-staff').innerHTML = `
+    <div class="card">
+      <h2>Staff Hours &amp; Pay</h2>
+      <div class="sub">Total unpaid owed: <b>${fmtMoney(owed)}</b></div>
+      <div class="add-form" style="flex-wrap:wrap;">
+        <select id="shiftPerson"><option value="Dalila">Dalila</option><option value="Kaylee">Kaylee</option><option value="Albert">Albert</option></select>
+        <input type="date" id="shiftDate">
+        <select id="shiftEvent"><option value="">No event</option>${eventOptions}</select>
+        <input type="number" step="0.25" id="shiftHours" placeholder="Hours">
+        <input type="number" step="0.01" id="shiftRate" placeholder="Pay rate/hr">
+        <button class="mini" onclick="addShift()">Add shift</button>
+      </div>
+      ${items.length ? items.map(s=>`
+        <div class="row">
+          <span class="pill ${s.paid_status==='paid'?'paid':'unpaid'}">${esc(s.paid_status||'unpaid')}</span>
+          <div style="flex:1"><div class="title">${esc(s.person)} — ${esc(s.hours)}h @ ${fmtMoney(s.pay_rate)}/hr = ${fmtMoney(s.pay_amount)}</div>
+          <div class="meta">${esc(s.shift_date||'')}</div></div>
+          <button class="mini" onclick="toggleShiftPaid('${s.id}','${s.paid_status==='paid'?'unpaid':'paid'}')">${s.paid_status==='paid'?'Mark unpaid':'Mark paid'}</button>
+          <button class="mini ghost" onclick="deleteRow('shifts','${s.id}')">Delete</button>
+        </div>`).join('') : '<div class="empty">No shifts logged yet.</div>'}
+    </div>`;
+}
+async function addShift(){
+  const person = document.getElementById('shiftPerson').value;
+  const shift_date = document.getElementById('shiftDate').value || null;
+  const event_id = document.getElementById('shiftEvent').value || null;
+  const hours = parseFloat(document.getElementById('shiftHours').value)||0;
+  const pay_rate = parseFloat(document.getElementById('shiftRate').value)||0;
+  const pay_amount = hours * pay_rate;
+  await sb.from('shifts').insert({ person, shift_date, event_id, hours, pay_rate, pay_amount, paid_status:'unpaid' });
+  document.getElementById('shiftHours').value=''; document.getElementById('shiftRate').value='';
+}
+async function toggleShiftPaid(id, status){ await sb.from('shifts').update({ paid_status: status }).eq('id', id); }
+
+// ---------------- CUSTOMERS ----------------
+function renderCustomers(){
+  const items = state.customers;
+  document.getElementById('panel-customers').innerHTML = `
+    <div class="card">
+      <h2>Customers</h2>
+      <div class="sub">Repeat customers, catering leads, loyalty tracking.</div>
+      <div class="add-form">
+        <input type="text" id="custName" placeholder="Name">
+        <input type="text" id="custContact" placeholder="Contact">
+        <input type="text" id="custNotes" placeholder="Notes">
+        <button class="mini" onclick="addCustomer()">Add</button>
+      </div>
+      ${items.length ? items.map(c=>`
+        <div class="row">
+          <div style="flex:1"><div class="title">${esc(c.name)} — ${esc(c.visit_count||0)} visits</div>
+          <div class="meta">${esc(c.contact||'')}${c.last_visit?' · last visit '+esc(c.last_visit):''}${c.notes?' · '+esc(c.notes):''}</div></div>
+          <button class="mini" onclick="bumpVisit('${c.id}', ${c.visit_count||0})">+1 visit</button>
+          <button class="mini ghost" onclick="deleteRow('customers','${c.id}')">Delete</button>
+        </div>`).join('') : '<div class="empty">No customers yet.</div>'}
+    </div>`;
+}
+async function addCustomer(){
+  const name = document.getElementById('custName').value.trim(); if(!name) return;
+  const contact = document.getElementById('custContact').value.trim();
+  const notes = document.getElementById('custNotes').value.trim();
+  await sb.from('customers').insert({ name, contact, notes, visit_count:1, last_visit: todayStr() });
+  document.getElementById('custName').value=''; document.getElementById('custContact').value=''; document.getElementById('custNotes').value='';
+}
+async function bumpVisit(id, current){ await sb.from('customers').update({ visit_count: current+1, last_visit: todayStr() }).eq('id', id); }
+
+// ---------------- OWNERSHIP & SCHEDULE ----------------
+function renderOwnership(){
+  const o = state.ownership || {};
+  document.getElementById('panel-ownership').innerHTML = `
+    <div class="card">
+      <h2>Ownership Split</h2>
+      <div class="add-form">
+        <input type="text" id="ownDalila" placeholder="Dalila %" value="${esc(o.dalila_pct||'')}">
+        <input type="text" id="ownKaylee" placeholder="Kaylee %" value="${esc(o.kaylee_pct||'')}">
+        <button class="mini" onclick="saveOwnership()">Save</button>
+      </div>
+      <textarea id="ownNotes" placeholder="Notes">${esc(o.notes||'')}</textarea>
+      <button class="mini" style="margin-top:8px;" onclick="saveOwnershipNotes()">Save notes</button>
+    </div>
+    <div class="card">
+      <h2>Operating Schedule</h2>
+      <textarea id="scheduleNotes" placeholder="e.g. Thursday–Sunday, 4 days/week">${esc(o.schedule_notes||'')}</textarea>
+      <button class="mini" style="margin-top:8px;" onclick="saveSchedule()">Save schedule</button>
+    </div>
+    <div class="card">
+      <h2>Service Area</h2>
+      <textarea id="serviceArea" placeholder="e.g. Austin, Kyle, Buda, Lakeway, Bee Cave &amp; surrounding Hill Country">${esc(o.service_area||'Austin, Kyle, Buda, Lakeway, Bee Cave & surrounding Hill Country')}</textarea>
+      <button class="mini" style="margin-top:8px;" onclick="saveServiceArea()">Save service area</button>
+    </div>`;
+}
+async function saveOwnership(){
+  const dalila_pct = document.getElementById('ownDalila').value.trim();
+  const kaylee_pct = document.getElementById('ownKaylee').value.trim();
+  await sb.from('business_meta').update({ dalila_pct, kaylee_pct }).eq('id','ownership');
+}
+async function saveOwnershipNotes(){
+  const notes = document.getElementById('ownNotes').value.trim();
+  await sb.from('business_meta').update({ notes }).eq('id','ownership');
+}
+async function saveSchedule(){
+  const schedule_notes = document.getElementById('scheduleNotes').value.trim();
+  await sb.from('business_meta').update({ schedule_notes }).eq('id','ownership');
+}
+async function saveServiceArea(){
+  const service_area = document.getElementById('serviceArea').value.trim();
+  await sb.from('business_meta').update({ service_area }).eq('id','ownership');
+}
+
+// ---------------- SHARED ----------------
+async function deleteRow(table, id){ await sb.from(table).delete().eq('id', id); }
+</script>
+</body>
+</html>
